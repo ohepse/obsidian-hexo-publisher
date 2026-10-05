@@ -1,0 +1,12 @@
+.hexo-log {
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 60vh;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 6px;
+  background-color: var(--background-secondary);
+}

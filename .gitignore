@@ -1,0 +1,11 @@
+# 用户运行时数据：站点路径、站点地址、个人样式预设，不属于插件源码
+data.json
+
+# 依赖与打包产物（本插件无需构建，main.js 直接提交）
+node_modules/
+package-lock.json
+
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db
+*.log

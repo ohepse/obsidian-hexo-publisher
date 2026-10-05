@@ -1,0 +1,9 @@
+{
+  "id": "hexo-publisher",
+  "name": "Hexo Publisher",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "用样式预设新建 Hexo 文章，并一键校验 / 发布到 GitHub Pages。",
+  "author": "ohEPse",
+  "isDesktopOnly": true
+}
