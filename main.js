@@ -167,6 +167,9 @@ class LogModal extends Modal {
 const DEFAULT_SETTINGS = {
   siteRoot: '',
   siteUrl: '',
+  // 随机封面图的目录（相对 vault 根，如 img/covers）。
+  // vault 根就是 Hexo 的 source/，所以文件 img/covers/a.jpg 的站点路径正好是 /img/covers/a.jpg
+  coverFolder: 'img/covers',
   presets: {
     '普通文章': { mathjax: false, tags: [], categories: [] },
     '带公式的长文': { mathjax: true, tags: [], categories: [] },
@@ -198,6 +201,11 @@ class HexoPublisher extends Plugin {
         name: '发布到 GitHub Pages',
         callback: () => this.runNpm('publish', '发布到 GitHub Pages'),
       });
+      this.addCommand({
+        id: 'random-cover',
+        name: '随机换一张封面（当前笔记）',
+        callback: () => this.randomizeCover(),
+      });
 
       // 左侧边栏的可见按钮（只在命令面板里出现太难找，这里给两个能看见的入口）
       this.addRibbonIcon('file-plus', 'Hexo: 新建文章（选择样式预设）', () => this.newPost());
@@ -225,6 +233,22 @@ class HexoPublisher extends Plugin {
     }).open();
   }
 
+  /** coverFolder 里的候选封面；返回 vault 绝对路径（/img/covers/a.jpg），正是 Hexo 需要的站点路径 */
+  coverCandidates() {
+    const folder = String(this.settings.coverFolder || '').replace(/^\/+|\/+$/g, '');
+    if (!folder) return [];
+    const prefix = folder + '/';
+    return this.app.vault.getFiles()
+      .filter((f) => f.path.indexOf(prefix) === 0 && /\.(png|jpe?g|webp|gif|avif)$/i.test(f.name))
+      .map((f) => '/' + f.path);
+  }
+
+  randomCover() {
+    const list = this.coverCandidates();
+    if (!list.length) return '';
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
   async createNote(title, preset) {
     if (!this.app.vault.getAbstractFileByPath('_posts')) {
       await this.app.vault.createFolder('_posts');
@@ -234,9 +258,58 @@ class HexoPublisher extends Plugin {
       new Notice('已存在：' + filePath);
       return;
     }
-    const file = await this.app.vault.create(filePath, composeNewPost(title, preset, new Date()));
+    // 预设里写了 cover 就用它（自定义封面）；没写才从 coverFolder 随机抽一张
+    const fields = Object.assign({}, preset);
+    if (!fields.cover) {
+      const picked = this.randomCover();
+      if (picked) fields.cover = picked;
+    }
+    const file = await this.app.vault.create(filePath, composeNewPost(title, fields, new Date()));
     await this.app.workspace.getLeaf('tab').openFile(file);
-    new Notice('已创建 ' + filePath);
+    let msg = '已创建 ' + filePath;
+    if (fields.cover) msg += '（封面 ' + fields.cover + '）';
+    new Notice(msg);
+  }
+
+  /** 给当前笔记换一张随机封面：已有 cover 就替换，没有就插到 date 之后 */
+  async randomizeCover() {
+    const file = this.app.workspace.getActiveFile();
+    if (!file || file.extension !== 'md') {
+      new Notice('请先打开一篇文章');
+      return;
+    }
+    const picked = this.randomCover();
+    if (!picked) {
+      new Notice('没有可用封面图，检查 data.json 的 coverFolder：' + (this.settings.coverFolder || '(空)'));
+      return;
+    }
+    try {
+      await this.setCoverInNote(file, picked);
+      new Notice('封面已换成 ' + picked);
+    } catch (e) {
+      new Notice('换封面失败：' + ((e && e.message) || e));
+    }
+  }
+
+  /** 只改 front matter 里的 cover 行，正文和其它字段一律不动，并保留原有行尾风格 */
+  async setCoverInNote(file, cover) {
+    const text = await this.app.vault.read(file);
+    const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+    if (!m) throw new Error('这篇文章没有 front matter');
+    const eol = text.indexOf('\r\n') >= 0 ? '\r\n' : '\n';
+    const fm = m[1];
+    let next;
+    if (/^cover:.*$/m.test(fm)) {
+      // 用函数式替换，避免封面文件名里的 $ 被当成替换模式
+      next = fm.replace(/^cover:.*$/m, () => 'cover: ' + cover);
+    } else if (/^date:.*$/m.test(fm)) {
+      next = fm.replace(/^(date:.*)$/m, (line) => line + eol + 'cover: ' + cover);
+    } else if (/^title:.*$/m.test(fm)) {
+      next = fm.replace(/^(title:.*)$/m, (line) => line + eol + 'cover: ' + cover);
+    } else {
+      next = 'cover: ' + cover + eol + fm;
+    }
+    await this.app.vault.modify(file, '---' + eol + next + eol + '---' + text.slice(m[0].length));
   }
 
   setStatus(text) {

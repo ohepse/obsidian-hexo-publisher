@@ -42,7 +42,8 @@ Settings live in `<plugin-folder>/data.json`. This file is **runtime data and is
     "Post with math": { "mathjax": true, "tags": [], "categories": [] },
     "Encrypted": { "mathjax": false, "password": "changeme", "tags": [], "categories": [] },
     "Pinned": { "mathjax": false, "sticky": 1, "tags": [], "categories": [] }
-  }
+  },
+  "coverFolder": "img/covers"
 }
 ```
 
@@ -61,12 +62,38 @@ Every key of the chosen preset is written into the new post's front matter. Usef
 
 Field order is fixed (`title`, `date`, `cover`, `description`, `mathjax`, `password`, `updated`, `top_img`, `sticky`, `hide`, `comments`, `abbrlink`, `type`, then `tags`, `categories`, then any other field) and lists are indented with 2 spaces — tab indentation is invalid YAML and breaks Obsidian, GitHub previews and prettier.
 
+## Random covers
+
+Leave `cover` out of a preset and the plugin picks a **random** image from `coverFolder` (default `img/covers`) every time you create a post.
+
+- Matching is `<vault>/img/covers/*.{png,jpg,jpeg,webp,gif,avif}` and the value written is `/img/covers/<name>` — exactly the path Hexo serves, because the vault root *is* your Hexo `source/` folder.
+- **Custom cover:** set `"cover": "/img/posts/mine.png"` in the preset (a preset always wins over the random pick), or just edit the `cover:` line afterwards.
+- **Re-roll:** the command **`Hexo: Random cover for current note`** replaces the `cover:` of the open note — or inserts it after `date:` if there is none — while leaving the body, the other fields and the line endings byte-identical.
+
+### What size should cover images be?
+
+Measured against Butterfly 4.x defaults: `.layout` max-width 1200px (1500px above 2000px), `#aside-content` 26%, post column 74%, card height `18em` = 288px, `.post_cover` 44% wide; on mobile the cover is full width × 230px. Images are drawn with `object-fit: cover` — i.e. **centre-cropped**.
+
+| Viewport | Cover box | Ratio |
+| --- | --- | --- |
+| typical desktop (1200px layout) | ≈381 × 288 px | 1.32 (≈4:3) |
+| very wide (≥2000px layout) | ≈479 × 288 px | 1.66 (≈5:3) |
+| mobile (≤768px) | ≈380 × 230 px | 1.65 (≈5:3) |
+
+Since the box ratio depends on the viewport, prepare **3:2 (1.5:1)** — the middle ground, so cropping stays small at both ends:
+
+- **Size 1200 × 800** (1500 × 1000 also fine). The image is never displayed wider than ~479 CSS px, so 1200 px covers HiDPI comfortably.
+- **JPEG or WebP, ≤ 200 KB.** Covers load on your index page; a multi-megabyte PNG will dominate the page weight.
+- **Keep the subject centred.** A 3:2 image loses ~12% of its width in a 4:3 box, and a little top/bottom in a 5:3 box.
+- Portrait phone photos (~0.5 ratio) make poor covers — roughly two thirds gets cropped away.
+
 ## Commands
 
 | Command | Ribbon icon | Suggested hotkey |
 | --- | --- | --- |
 | Hexo: New post (choose a preset) | file-plus | `Ctrl/Cmd+Shift+N` |
 | Hexo: Validate front matter | — | — |
+| Hexo: Random cover for current note | — | — |
 | Hexo: Publish to GitHub Pages | upload | `Ctrl/Cmd+Shift+P` |
 
 The plugin intentionally does **not** ship default hotkeys; bind them in **Settings → Hotkeys** (search for "Hexo").
